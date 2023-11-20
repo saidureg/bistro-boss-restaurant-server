@@ -43,7 +43,7 @@ async function run() {
 
     // middleware to verify jwt token
     const verifyToken = (req, res, next) => {
-      console.log("inside verify token", req.headers?.authorization);
+      // console.log("inside verify token", req.headers?.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "Unauthorized access" });
       }
@@ -59,10 +59,10 @@ async function run() {
     };
 
     // use verify admin after verify token
-    const verifyAdmin = (req, res, next) => {
-      const email = req.params.email;
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
       const query = { email: email };
-      const user = userCollection.findOne(query);
+      const user = await userCollection.findOne(query);
       const isAdmin = user?.role === "admin";
       if (!isAdmin) {
         return res.status(403).send({ message: "Forbidden access" });
