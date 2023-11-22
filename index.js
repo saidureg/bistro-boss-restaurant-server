@@ -33,6 +33,7 @@ async function run() {
     const menuCollection = client.db("bistroDB").collection("menu");
     const reviewCollection = client.db("bistroDB").collection("reviews");
     const cartCollection = client.db("bistroDB").collection("carts");
+    const paymentCollection = client.db("bistroDB").collection("payments");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -200,7 +201,7 @@ async function run() {
     // payment intent
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
-      const amount = parseFloat(price) * 100;
+      const amount = parseInt(price * 100);
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
@@ -209,6 +210,30 @@ async function run() {
       res.send({
         clientSecret: paymentIntent.client_secret,
       });
+    });
+
+    app.get("/payments/:email", verifyToken, async (req, res) => {
+      const query = { email: req.params?.email };
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      const result = await paymentCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+      // res.send(paymentResult);
+      // carefully delete each item from the cart
+      // console.log("payment Info", payment);
+      const query = {
+        _id: {
+          $in: payment.cartIds.map((id) => new ObjectId(id)),
+        },
+      };
+      const deleteResult = await cartCollection.deleteMany(query);
+      res.send({ paymentResult, deleteResult });
     });
 
     // Send a ping to confirm a successful connection
@@ -224,7 +249,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("bistro boss serrver is running");
+  res.send("bistro boss server is running");
 });
 
 app.listen(port, () => {
