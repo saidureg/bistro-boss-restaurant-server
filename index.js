@@ -260,13 +260,13 @@ async function run() {
         ])
         .toArray();
       const revenue =
-        result.length > 0 ? result[0].totalRevenue.toFixed(2) : "0.00";
+        result.length > 0 ? result[0].totalRevenue.toFixed(1) : "0.0";
 
       res.send({ users, menuItems, orders, revenue });
     });
 
     // Using aggregation pipeline to get the menu items with category
-    app.get("/order-stats", async (req, res) => {
+    app.get("/order-stats", verifyToken, verifyAdmin, async (req, res) => {
       const result = await paymentCollection
         .aggregate([
           {
@@ -295,7 +295,15 @@ async function run() {
             $group: {
               _id: "$menuItems.category",
               quantity: { $sum: 1 },
-              totalRevenue: { $sum: "$menuItems.price" },
+              revenue: { $sum: "$menuItems.price" },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              category: "$_id",
+              quantity: "$quantity",
+              revenue: "$revenue",
             },
           },
 
